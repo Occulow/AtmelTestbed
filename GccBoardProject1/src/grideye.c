@@ -42,6 +42,38 @@ void init_grideye(void)
 
 	i2c_master_enable(&i2c_master_instance);
 }
+bool is_sleeping(void) {
+	return false;
+}
+bool set_mode_sleep(void) {
+	return false;
+}
+
+/**
+ * Gets ambient temperature in Celsius
+ */
+double get_ambient_temp(void)
+{
+	uint8_t lsb, msb;
+
+	lsb = read_byte(REG_THERM_LSB);
+	msb = read_byte(REG_THERM_MSB);
+	return (((msb << 8) + lsb) * 0.0625);
+}
+
+/**
+* Gets a frame from the GridEye
+*/
+void get_frame(uint16_t *frame_buffer)
+{
+	uint8_t lsb, msb;
+	for (int i = 0; i < NUM_PIXELS; i++) {
+		lsb = read_byte(REG_PIXEL_BASE + 2*i);
+		msb = read_byte(REG_PIXEL_BASE + 2*i + 1);
+		frame_buffer[i] = ((msb << 8) + lsb);
+		// frame_buffer[i] = (((msb << 8) + lsb) * 0.25);
+	}
+}
 
 uint8_t read_byte(uint8_t addr) {
 	uint16_t timeout = 0;
@@ -74,31 +106,5 @@ uint8_t read_byte(uint8_t addr) {
 	}
 	
 	return read_buffer[0];
-}
-
-/**
- * Gets ambient temperature in Celsius
- */
-double get_ambient_temp(void)
-{
-	uint8_t lsb, msb;
-	
-	lsb = read_byte(REG_THERM_LSB);
-	msb = read_byte(REG_THERM_MSB);
-	return (((msb << 8) + lsb) * 0.0625);
-}
-
-/**
-* Gets a frame from the GridEye
-*/
-void get_frame(uint16_t *frame_buffer)
-{
-	uint8_t lsb, msb;
-	for (int i = 0; i < NUM_PIXELS; i++) {
-		lsb = read_byte(REG_PIXEL_BASE + 2*i);
-		msb = read_byte(REG_PIXEL_BASE + 2*i + 1);
-		frame_buffer[i] = ((msb << 8) + lsb);
-		// frame_buffer[i] = (((msb << 8) + lsb) * 0.25);
-	}
 }
 
