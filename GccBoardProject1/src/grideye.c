@@ -42,17 +42,17 @@ void init_grideye(void)
 
 	i2c_master_enable(&i2c_master_instance);
 }
-bool is_sleeping(void) {
+bool ge_is_sleeping(void) {
 	return false;
 }
-bool set_mode_sleep(void) {
+bool ge_set_mode_sleep(void) {
 	return false;
 }
 
 /**
  * Gets ambient temperature in Celsius
  */
-double get_ambient_temp(void)
+double ge_get_ambient_temp(void)
 {
 	uint8_t lsb, msb;
 
@@ -64,7 +64,7 @@ double get_ambient_temp(void)
 /**
 * Gets a frame from the GridEye
 */
-void get_frame(uint16_t *frame_buffer)
+void ge_get_frame(uint16_t *frame_buffer)
 {
 	uint8_t lsb, msb;
 	for (int i = 0; i < NUM_PIXELS; i++) {

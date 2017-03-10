@@ -12,9 +12,9 @@
 #define NUM_PIXELS 64
 
 void init_grideye(void);
-bool is_sleeping(void);
-bool set_mode_sleep(void);
-double get_ambient_temp(void);
-void get_frame(uint16_t *frame_buffer);
+bool ge_is_sleeping(void);
+bool ge_set_mode_sleep(void);
+double ge_get_ambient_temp(void);
+void ge_get_frame(uint16_t *frame_buffer);
 
 #endif /* GRIDEYE_H_ */
