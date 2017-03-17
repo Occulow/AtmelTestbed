@@ -36,11 +36,16 @@
 #include <grideye.h>
 
 static uint16_t PIXEL_BUFFER[NUM_PIXELS];
-
+static uint8_t current_mode = 0;
 struct usart_module usart_instance;
 
 void init_uart(void);
+void init_standby(void);
 void uart_out(const uint8_t *string, uint16_t length);
+void wakeup_device(void);
+void sleep_device(void);
+void configure_extint_channel(void);
+void configure_extint_callbacks(void);
 
 
 void init_uart() {
@@ -64,43 +69,64 @@ void uart_out(const uint8_t *string, uint16_t length) {
 	while(usart_write_buffer_wait(&usart_instance, string, length) != STATUS_OK){}
 }
 
+void configure_extint_channel(void) {
+	struct extint_chan_conf config_extint_chan;
+	extint_chan_get_config_defaults(&config_extint_chan);
+	
+	config_extint_chan.gpio_pin = BUTTON_0_EIC_PIN;
+	config_extint_chan.gpio_pin_mux = BUTTON_0_EIC_MUX;
+	config_extint_chan.gpio_pin_pull = EXTINT_PULL_UP;
+	config_extint_chan.detection_criteria = EXTINT_DETECT_FALLING;
+
+	extint_chan_set_config(BUTTON_0_EIC_LINE, &config_extint_chan);
+	while(extint_chan_is_detected(BUTTON_0_EIC_LINE)) {
+		extint_chan_clear_detected(BUTTON_0_EIC_LINE);
+	}
+	extint_register_callback(wakeup_device, BUTTON_0_EIC_LINE, EXTINT_CALLBACK_TYPE_DETECT);
+	extint_chan_enable_callback(BUTTON_0_EIC_LINE, EXTINT_CALLBACK_TYPE_DETECT);
+}
+
+void configure_extint_callbacks(void) {
+}
+
+void init_standby(void) {
+	struct system_standby_config standby_conf;
+	system_standby_get_config_defaults(&standby_conf);
+	system_standby_set_config(&standby_conf);
+}
+
+void wakeup_device(void) {
+	if (current_mode == 0) {
+		current_mode = 1;
+	} else {
+		current_mode = 0;
+		LED_Off(LED0_GPIO);
+	}
+}
+
+void sleep_device(void) {
+	current_mode = 1;
+	LED_On(LED0_GPIO);
+	system_set_sleepmode(SYSTEM_SLEEPMODE_STANDBY);
+	system_sleep();
+}
+
 int main (void) {
 	system_init();
 	init_uart();
-	init_grideye();
+	// init_grideye();
 	delay_init();
+	init_standby();
 	
-	/* Insert application code here, after the board has been initialized. */
-
-	/* This skeleton code simply sets the LED to the state of the button. */
+	configure_extint_channel();
+	configure_extint_callbacks();
+	uint8_t hearbeat_msg[] = "Awake.\r\n";
+	
 	while (1) {
-		/* Is button pressed? */
-		if (port_pin_get_input_level(BUTTON_0_PIN) == BUTTON_0_ACTIVE) {
-			if (ge_is_sleeping()) {
-				ge_set_mode(GE_MODE_NORMAL);
-				port_pin_set_output_level(LED_0_PIN, !LED_0_ACTIVE);
-			} else {
-				ge_set_mode(GE_MODE_SLEEP);
-				port_pin_set_output_level(LED_0_PIN, LED_0_ACTIVE);
-			}
-			delay_ms(100);
-		}
-
-		if (!ge_is_sleeping()) {
-			// Send frame
-			uint8_t buffer[512];
-			//double ambient_temp = get_ambient_temp();
-			
-			//uint16_t len = snprintf((char *) buffer, sizeof(buffer), "It is %.2lf degrees Celsius.\r\n", ambient_temp);
-			//uart_out(buffer, len);
-			ge_get_frame(PIXEL_BUFFER);
-			uint16_t size = 0;
-			for (int i = 0; i < NUM_PIXELS; i++) {
-				size += sprintf((char *) (buffer + size), "%d,", PIXEL_BUFFER[i]);
-			}
-			buffer[size-1] = '\r';
-			buffer[size] = '\n';
-			uart_out(buffer, size+1);
+		uart_out(hearbeat_msg, sizeof(hearbeat_msg));
+		delay_s(1);
+		if (current_mode == 1) {
+			sleep_device();
 		}
 	}
 }
