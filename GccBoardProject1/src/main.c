@@ -34,9 +34,13 @@
 
 #include <asf.h>
 #include <grideye.h>
+#include <peopleCounting.h>
+#include "numpyInC.c"
 
 static uint16_t PIXEL_BUFFER[NUM_PIXELS];
+static uint16_t * COUNT_BUFF[COUNT_BUFF_SIZE];
 
+/*
 struct usart_module usart_instance;
 
 void init_uart(void);
@@ -47,7 +51,7 @@ void init_uart() {
 	struct usart_config config_usart;
 	usart_get_config_defaults(&config_usart);
 	
-	config_usart.baudrate    = 115200;
+	config_usart.baudrate    = 9600;
 	config_usart.mux_setting = EDBG_CDC_SERCOM_MUX_SETTING;
 	config_usart.pinmux_pad0 = EDBG_CDC_SERCOM_PINMUX_PAD0;
 	config_usart.pinmux_pad1 = EDBG_CDC_SERCOM_PINMUX_PAD1;
@@ -63,18 +67,30 @@ void init_uart() {
 void uart_out(const uint8_t *string, uint16_t length) {
 	while(usart_write_buffer_wait(&usart_instance, string, length) != STATUS_OK){}
 }
-
+*/
+/*
 int main (void) {
 	system_init();
 	init_uart();
 	init_grideye();
 	delay_init();
 	
+	struct keepCount * count;
+	count->countIn = 0;
+	count->countOut = 0;
+	uint16_t frameCount = 0;
+	uint16_t lastFrame = 0;
+	count->TRIGGER_COLUNM[0][0] = TRIGGER_COLUNM_2;
+	count->TRIGGER_COLUNM[0][1] = CHECK_OFFSET_2;
+	count->TRIGGER_COLUNM[1][0] = TRIGGER_COLUNM_5;
+	count->TRIGGER_COLUNM[1][1] = CHECk_OFFSET_5;
+	count->counted = False;
+	
 	/* Insert application code here, after the board has been initialized. */
 
-	/* This skeleton code simply sets the LED to the state of the button. */
+	/* This skeleton code simply sets the LED to the state of the button. 
 	while (1) {
-		/* Is button pressed? */
+		/* Is button pressed? 
 		if (port_pin_get_input_level(BUTTON_0_PIN) == BUTTON_0_ACTIVE) {
 			if (ge_is_sleeping()) {
 				ge_set_mode(GE_MODE_NORMAL);
@@ -89,6 +105,7 @@ int main (void) {
 		if (!ge_is_sleeping()) {
 			// Send frame
 			uint8_t buffer[512];
+			
 			//double ambient_temp = get_ambient_temp();
 			
 			//uint16_t len = snprintf((char *) buffer, sizeof(buffer), "It is %.2lf degrees Celsius.\r\n", ambient_temp);
@@ -100,7 +117,22 @@ int main (void) {
 			}
 			buffer[size-1] = '\r';
 			buffer[size] = '\n';
+			//frameCount++;
+			//count = countPeople(count, PIXEL_BUFFER, frameCount, COUNT_BUFF, lastFrame);
 			uart_out(buffer, size+1);
 		}
 	}
+}
+*/
+int main(void) {
+	system_init();
+	init_uart();
+	uint8_t debug[] = "is this printing\r\n";
+	uart_out(debug,sizeof(debug)-1);
+	uint8_t array[] = "123";
+	uint8_t b[] = "456";
+	uint8_t ** C;
+	C = dstack(array, b);
+	uart_out(C[0], sizeof(C[0]) - 1);
+	return 0;
 }
