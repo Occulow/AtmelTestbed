@@ -35,47 +35,34 @@
 #include <asf.h>
 #include <grideye.h>
 #include <peopleCounting.h>
-#include "numpyInC.c"
+#include <numpyInC.h>
 
 static uint16_t PIXEL_BUFFER[NUM_PIXELS];
-static uint16_t * COUNT_BUFF[COUNT_BUFF_SIZE];
+static uint16_t frame1[NUM_PIXELS];
+static uint16_t* MEDIAN_FILTER_POINTERS_BUFF[MEDIAN_FILTER_POINTERS_BUFF_SIZE];
+static uint16_t frame[NUM_RAW_FRAMES][NUM_PIXELS];
+static uint16_t COUNT_BUFF[COUNT_BUFF_SIZE];
+static uint16_t frame_conv[GRID_SIZE][GRID_SIZE];
+static struct keepCount count;
 
-/*
-struct usart_module usart_instance;
 
-void init_uart(void);
-void uart_out(const uint8_t *string, uint16_t length);
-
-
-void init_uart() {
-	struct usart_config config_usart;
-	usart_get_config_defaults(&config_usart);
-	
-	config_usart.baudrate    = 9600;
-	config_usart.mux_setting = EDBG_CDC_SERCOM_MUX_SETTING;
-	config_usart.pinmux_pad0 = EDBG_CDC_SERCOM_PINMUX_PAD0;
-	config_usart.pinmux_pad1 = EDBG_CDC_SERCOM_PINMUX_PAD1;
-	config_usart.pinmux_pad2 = EDBG_CDC_SERCOM_PINMUX_PAD2;
-	config_usart.pinmux_pad3 = EDBG_CDC_SERCOM_PINMUX_PAD3;
-	
-	while (usart_init(&usart_instance, EDBG_CDC_MODULE, &config_usart) != STATUS_OK) {
+void median_buffer_init(uint16_t* MEDIAN_FILTER_POINTERS_BUFF[], uint16_t** frame) {
+	for (int i = 0; i < NUM_RAW_FRAMES; i++) {
+		MEDIAN_FILTER_POINTERS_BUFF[i] = &frame[i];
 	}
-	
-	usart_enable(&usart_instance);
+	return;
 }
 
-void uart_out(const uint8_t *string, uint16_t length) {
-	while(usart_write_buffer_wait(&usart_instance, string, length) != STATUS_OK){}
-}
-*/
-/*
+
+
 int main (void) {
 	system_init();
 	init_uart();
 	init_grideye();
 	delay_init();
+	median_buffer_init(MEDIAN_FILTER_POINTERS_BUFF, frame);
 	
-	struct keepCount * count;
+	
 	count->countIn = 0;
 	count->countOut = 0;
 	uint16_t frameCount = 0;
@@ -83,14 +70,14 @@ int main (void) {
 	count->TRIGGER_COLUNM[0][0] = TRIGGER_COLUNM_2;
 	count->TRIGGER_COLUNM[0][1] = CHECK_OFFSET_2;
 	count->TRIGGER_COLUNM[1][0] = TRIGGER_COLUNM_5;
-	count->TRIGGER_COLUNM[1][1] = CHECk_OFFSET_5;
-	count->counted = False;
+	count->TRIGGER_COLUNM[1][1] = CHECK_OFFSET_5;
+	count->counted = false;
 	
 	/* Insert application code here, after the board has been initialized. */
 
-	/* This skeleton code simply sets the LED to the state of the button. 
+	/* This skeleton code simply sets the LED to the state of the button. */
 	while (1) {
-		/* Is button pressed? 
+		/* Is button pressed? */
 		if (port_pin_get_input_level(BUTTON_0_PIN) == BUTTON_0_ACTIVE) {
 			if (ge_is_sleeping()) {
 				ge_set_mode(GE_MODE_NORMAL);
@@ -117,22 +104,16 @@ int main (void) {
 			}
 			buffer[size-1] = '\r';
 			buffer[size] = '\n';
-			//frameCount++;
-			//count = countPeople(count, PIXEL_BUFFER, frameCount, COUNT_BUFF, lastFrame);
+			frameCount++;
+			if (frameCount <= NUM_RAW_FRAMES) {
+				initialize_mem(PIXEL_BUFFER, frameCount);
+			} else {
+				dstack(MEDIAN_FILTER_POINTERS_BUFF, PIXEL_BUFFER);;
+			}
+			uint16_t *frame_median = median_frame(MEDIAN_FILTER_POINTERS_BUFF, frame1);
+			
+			count = countPeople(&count, frame_median, frameCount, COUNT_BUFF, lastFrame);
 			uart_out(buffer, size+1);
 		}
 	}
-}
-*/
-int main(void) {
-	system_init();
-	init_uart();
-	uint8_t debug[] = "is this printing\r\n";
-	uart_out(debug,sizeof(debug)-1);
-	uint8_t array[] = "123";
-	uint8_t b[] = "456";
-	uint8_t ** C;
-	C = dstack(array, b);
-	uart_out(C[0], sizeof(C[0]) - 1);
-	return 0;
 }
