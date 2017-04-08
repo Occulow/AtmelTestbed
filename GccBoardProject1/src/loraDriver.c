@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <asf.h>
 #include "saml21j18b.h"
+#include "status_codes.h"
 
 uint8_t reset_N = PIN_PB00;
 uint16_t rx_offset = 0;
@@ -65,6 +66,8 @@ void lora_setup()
 	delay_ms(5000);
 	read_response();
 	n = (uint16_t) sprintf(tx_buffer,"mac set appeui 0000000000000100\r\n");
+	send_lora_command(tx_buffer,n);
+	n = (uint16_t) sprintf(tx_buffer,"mac set deveui 1122334455667799\r\n");
 	send_lora_command(tx_buffer,n);
 	n = (uint16_t) sprintf(tx_buffer,"mac set appkey 2b7e151628aed2a6abf7156669cf4f3c\r\n");
 	send_lora_command(tx_buffer,n);
@@ -204,7 +207,7 @@ void send_lora_command(uint8_t cmd[],uint16_t len)
 	uint8_t msg[] = "Sent command: ";
 	printSerial(msg,sizeof(msg));
 	printSerial(cmd,len);
-	delay_ms(500);
+	//delay_ms(500);
 	read_response();
 	
 }
@@ -234,10 +237,16 @@ bool read_response()
 	uint8_t noresp[] = "No response\r\n";
 	uint8_t msg1[] = "Received from RN2903: ";
 	
+	status_code_genare_t err;
+	uint8_t check[10];
+	
 	if(usart_read_wait(&lora_uart_instance, &c) == STATUS_OK){
 		rx_buffer[rx_offset++] = c;
 		while((char)c != '\n'){
-			while(usart_read_wait(&lora_uart_instance, &c)!=STATUS_OK);
+			while((err = usart_read_wait(&lora_uart_instance, &c))!=STATUS_OK){
+				n = sprintf(check,"ERROR: %x\r\n",err);
+				//printSerial(check,n);
+			};
 			if(rx_offset == RX_BUFFER_SIZE){
 				n = (uint16_t) sprintf(tx_buffer,"ReadBuf overflow, emptying buffer\r\n");
 				printSerial(tx_buffer,n);
