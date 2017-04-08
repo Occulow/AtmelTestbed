@@ -7,6 +7,7 @@
 
 #include <asf.h>
 #include <grideye.h>
+#include <numpyInC.h>
 
 #define GE_BUFFER_DATA_LENGTH 128
 static uint8_t ge_write_buffer[GE_BUFFER_DATA_LENGTH];

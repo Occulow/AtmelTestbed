@@ -7,11 +7,13 @@
 
 #include <asf.h>
 #include <string.h>
+#include <numpyInC.h>
 
 struct usart_module usart_instance;
+static uint16_t FRAME_MEDIAN[NUM_PIXELS];
+static uint16_t ARRAY[NUM_RAW_FRAMES];
+static uint16_t FRAME_TEMP[NUM_PIXELS];
 
-void init_uart(void);
-void uart_out(const uint8_t *string, uint16_t length);
 
 
 void init_uart() {
@@ -36,53 +38,45 @@ void uart_out(const uint8_t *string, uint16_t length) {
 }
 
 
-int * fromString(char* data, const char* delim) {
-	int * array;
-	char * pt = strtok(data, delim);
-	uint8_t debug1[] = "NOW is this printing\r\n";
-	uart_out(debug1, sizeof(debug1) - 1);
-	if (pt != NULL) {
-		uint8_t debug2[] = "is this printing\r\n";
-		uart_out(debug2, sizeof(debug2) - 1);
-	}else {
-		uint8_t debug3[] = "NOW 2 is this printing\r\n";
-		uart_out(debug3, sizeof(debug3) - 1);
+void dstack(uint16_t * median_filter_buffer[], uint16_t pixel_buff[]) {
+	uint16_t *oldFrame= median_filter_buffer[0];
+	for (int i = 0; i < NUM_PIXELS; i++){
+		oldFrame[i] = pixel_buff[i];
 	}
-	uart_out((uint8_t *) pt, sizeof(pt) - 1);
-	int i = 0;
-	while (pt != NULL) {
-		array[i] = atoi(pt);
-		uint8_t msg = array[i];
-		uart_out(msg, sizeof(msg) - 1);
-		pt = strtok(NULL, delim);
+	for (int i = 0; i < MEDIAN_FILTER_POINTERS_BUFF_SIZE - 1; i++) {
+		median_filter_buffer[i] = median_filter_buffer[i+1];
 	}
-	return array;
+	median_filter_buffer[MEDIAN_POINTER_BUFF_LAST_INDEX] = &oldFrame[0];
+	return;
 }
 
-uint8_t * dstack(uint8_t * array1, uint8_t * array2) {
-	uart_out(array2, sizeof(array1)-1);
-	uint8_t * newArray[3];
-	uint8_t i = 0;
-	uint8_t i1=0;
-	uint8_t i2 = 0;
-	uint8_t pt1, pt2;
-	pt1 = array1[i1];
-	pt2 = array2[i2];
+uint16_t median(int len) {
+	uint16_t temp;
+	for (int i = 0; i < len; i++) {
+		for (int j = i+1; j < len; j++) {
+			if (ARRAY[j] < ARRAY[i]) {
+				temp = ARRAY[i];
+				ARRAY[i] = ARRAY[j];
+				ARRAY[j] = temp;
+			}
+		}
+	}
 	
-	while (pt1 != NULL && pt2 != NULL){
-		uint8_t pt3[2];
-		pt3[0] = pt1;
-		pt3[1] = pt2;
-		uart_out(pt3, sizeof(pt3));
-		newArray[i] = pt3;
-		uart_out(newArray[i], sizeof(newArray[i])-1);
-		i ++;
-		pt1 = array1[i1++];
-		pt2 = array2[i2++];
+	if (len % 2 == 0) {
+		return ((ARRAY[len/2] + ARRAY[len/2 - 1])/2);
+		} else {
+		return ARRAY[len/2];
 	}
-	uint8_t debug[] = "is this printing\r\n";
-	uart_out(debug,sizeof(debug)-1);
-	uart_out(*newArray, sizeof(*newArray)-1);
-	return (newArray);
+	
 }
 
+uint16_t* median_frame(uint16_t* median_filter_buffer[]) {
+	for (int j = 0; j < NUM_PIXELS; j++) {
+		for (int i = 0; i < MEDIAN_FILTER_POINTERS_BUFF_SIZE; i++) {
+			FRAME_TEMP = median_filter_buffer[i];
+			ARRAY[i] = FRAME_TEMP[j];
+		}
+		FRAME_MEDIAN[j] = median(NUM_RAW_FRAMES);
+	}
+	return &FRAME_MEDIAN[0];
+}
