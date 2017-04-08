@@ -10,11 +10,10 @@
 #include <numpyInC.h>
 
 struct usart_module usart_instance;
-static uint16_t frame_median[NUM_PIXELS];
-static uint16_t array[NUM_RAW_FRAMES];
+static uint16_t FRAME_MEDIAN[NUM_PIXELS];
+static uint16_t ARRAY[NUM_RAW_FRAMES];
+static uint16_t FRAME_TEMP[NUM_PIXELS];
 
-void init_uart(void);
-void uart_out(const uint8_t *string, uint16_t length);
 
 
 void init_uart() {
@@ -39,50 +38,45 @@ void uart_out(const uint8_t *string, uint16_t length) {
 }
 
 
-void dstack(uint16_t * MEDIAN_FILTER_POINTERS_BUFF[], uint16_t PIXEL_BUFFER[]) {
-	uint16_t *oldFrame= MEDIAN_FILTER_POINTERS_BUFF[0];
+void dstack(uint16_t * median_filter_buffer[], uint16_t pixel_buff[]) {
+	uint16_t *oldFrame= median_filter_buffer[0];
 	for (int i = 0; i < NUM_PIXELS; i++){
-		oldFrame[i] = PIXEL_BUFFER[i];
+		oldFrame[i] = pixel_buff[i];
 	}
 	for (int i = 0; i < MEDIAN_FILTER_POINTERS_BUFF_SIZE - 1; i++) {
-		MEDIAN_FILTER_POINTERS_BUFF[i] = MEDIAN_FILTER_POINTERS_BUFF[i+1];
+		median_filter_buffer[i] = median_filter_buffer[i+1];
 	}
-	MEDIAN_FILTER_POINTERS_BUFF[9] = &oldFrame[0];
+	median_filter_buffer[MEDIAN_POINTER_BUFF_LAST_INDEX] = &oldFrame[0];
 	return;
 }
 
-float median(uint16_t array[], int len) {
-	float temp;
+uint16_t median(int len) {
+	uint16_t temp;
 	for (int i = 0; i < len; i++) {
 		for (int j = i+1; j < len; j++) {
-			if (array[j] < array[i]) {
-				temp = array[i];
-				array[i] = array[j];
-				array[j] = temp;
+			if (ARRAY[j] < ARRAY[i]) {
+				temp = ARRAY[i];
+				ARRAY[i] = ARRAY[j];
+				ARRAY[j] = temp;
 			}
 		}
 	}
 	
-	if
-	(len % 2 == 0) {
-		return ((array[len/2] + array[len/2 - 1])/2.0);
+	if (len % 2 == 0) {
+		return ((ARRAY[len/2] + ARRAY[len/2 - 1])/2);
 		} else {
-		return array[len/2];
+		return ARRAY[len/2];
 	}
 	
 }
 
-uint16_t* median_frame(uint16_t* MEDIAN_FILTER_POINTERS_BUFF[], uint16_t frame1[]) {
-	int j = 0;
-	while (j < NUM_PIXELS) {
+uint16_t* median_frame(uint16_t* median_filter_buffer[]) {
+	for (int j = 0; j < NUM_PIXELS; j++) {
 		for (int i = 0; i < MEDIAN_FILTER_POINTERS_BUFF_SIZE; i++) {
-			frame1 = MEDIAN_FILTER_POINTERS_BUFF[i];
-			array[i] = frame1[i];
+			FRAME_TEMP = median_filter_buffer[i];
+			ARRAY[i] = FRAME_TEMP[j];
 		}
-		for (int i = 0; i < 10; i++) {
-		}
-		frame_median[j] = median(array, NUM_RAW_FRAMES);
-		j++;
+		FRAME_MEDIAN[j] = median(NUM_RAW_FRAMES);
 	}
-	return &frame_median[0];
+	return &FRAME_MEDIAN[0];
 }

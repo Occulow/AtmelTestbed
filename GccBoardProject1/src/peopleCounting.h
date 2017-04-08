@@ -31,12 +31,16 @@ struct keepCount{
 	bool counted;
 };
 
-bool is_local_max(uint16_t COUNT_BUFF[], uint16_t frame_index, uint16_t row, uint16_t col);
-uint16_t* addFrame(uint16_t PIXEL_BUFFER[], uint16_t COUNT_BUFF[], uint16_t frameCount, struct keepCount *count);
-uint16_t getMaxId(uint16_t COUNT_BUFF[], uint16_t ind, uint16_t col);
-void convertToFrame(uint16_t COUNT_BUFF[], uint16_t ind);
-int determine_direction(uint16_t trigger_col, uint16_t offset, uint16_t* COUNT_BUFF);
-void doCount(struct keepCount *count, uint16_t COUNT_BUFF[], uint16_t frameCount);
-void countPeople(struct keepCount* count, uint16_t PIXEL_BUFFER[], uint16_t frameCount, uint16_t COUNT_BUFF[], uint16_t lastFrame);
-void initialize_mem(uint16_t PIXEL_BUFFER[], uint16_t frameCount);
+void median_buffer_init(uint16_t *median_filters_buff[]);
+void initialize_count();
+void pc_new_frame(uint16_t frame_count, uint16_t pix_buff[], uint16_t *median_filters_buff[]);
+void start_count(uint16_t frame_count, uint16_t pix_buff[], uint16_t *median_filter_buff[], uint16_t count_buffer[]);
+bool is_local_max(uint16_t count_buffer[], uint16_t frame_index, uint16_t row, uint16_t col);
+void add_frame(uint16_t frame_median[], uint16_t count_buffer[], uint16_t frame_count)
+uint16_t getMaxId(uint16_t count_buffer[], uint16_t ind, uint16_t col);
+void convert_to_frame(uint16_t count_buffer[], uint16_t ind);
+int determine_direction(uint16_t trigger_col, uint16_t offset, uint16_t count_buffer[]);
+void doCount(uint16_t count_buffer[], uint16_t frame_count);
+void countPeople(uint16_t frame_median[], uint16_t frame_count, uint16_t count_buffer[]);
+void initialize_mem(uint16_t pix_buff[], uint16_t frame_count);
 #endif 

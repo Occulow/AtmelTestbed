@@ -10,97 +10,128 @@
 #include <peopleCounting.h>
 #include <numpyInC.h>
 
+static uint16_t FRAME_CONV[GRID_SIZE][GRID_SIZE];
+static uint16_t FRAME[NUM_RAW_FRAMES][NUM_PIXELS];
+static struct keepCount count;
 
-bool is_local_max(uint16_t COUNT_BUFF[], uint16_t frame_index, uint16_t row, uint16_t col) {
-	convertToFrame(COUNT_BUFF, frame_index);
-	uint16_t current_max = frame_conv[row][col];
+void initialize_count() {
+	count.countIn = 0;
+	count.countOut = 0;
+	count.TRIGGER_COLUNM[0][0] = TRIGGER_COLUNM_2;
+	count.TRIGGER_COLUNM[0][1] = CHECK_OFFSET_2;
+	count.TRIGGER_COLUNM[1][0] = TRIGGER_COLUNM_5;
+	count.TRIGGER_COLUNM[1][1] = CHECK_OFFSET_5;
+	count.counted = false;
+}
+
+void median_buffer_init(uint16_t *median_filters_buff[]) {
+	for (int i = 0; i < NUM_RAW_FRAMES; i++) {
+		median_filters_buff[i] = &FRAME[i];
+	}
+	return;
+}
+
+void pc_new_frame(uint16_t frame count, uint16_t pix_buff[], uint16_t *median_filters_buff[]) {
+	if (frame_count < NUM_RAW_FRAMES) {
+		initialize_mem(pix_buff, frame_count);
+	} else {
+		dstack(median_filters_buff, pix_buff);
+	}
+	return;
+}
+
+void start_count(uint16_t frame count, uint16_t pix_buff[], uint16_t *median_filter_buff[], uint16_t count_buffer[]) {
+	pc_new_frame(frame_count, pix_buff, median_filter_buff);
+	uint16_t *frame_median = median_frame(median_filter_buff);
+	countPeople(frame_median, frame_count, count_buffer);
+	return;
+}
+
+bool is_local_max(uint16_t count_buffer[], uint16_t frame_index, uint16_t row, uint16_t col) {
+	convert_to_frame(count_buffer, frame_index);
+	uint16_t current_max = FRAME_CONV[row][col];
 	
 	// Greater than (row+1, col), (row-1, col)
-	if (current_max < frame_conv[row+1][col] || current_max < frame_conv[row-1][col]) {
+	if ((row < 7 && current_max < FRAME_CONV[row+1][col] )|| (row > 0 && current_max < FRAME_CONV[row-1][col])) {
 		return false;
 	}
 	// Greater than (row, col+1), (row, col-1)
-	if (current_max < frame_conv[row][col+1] || current_max < frame_conv[row][col-1]) {
+	if ((col < 7 && current_max < FRAME_CONV[row][col+1]) || (col > 0 && current_max < FRAME_CONV[row][col-1])) {
 		return false;
 	}
 	// Greater than (row+1, col+1), (row-1, col-1)
-	if (current_max < frame_conv[row+1][col+1] || current_max < frame_conv[row-1][col-1]) {
+	if ((row < 7 && col < 7 && current_max < FRAME_CONV[row+1][col+1]) || (row > 0 && col > 0 && current_max < FRAME_CONV[row-1][col-1])) {
 		return false;
 	}
 	// Greater than (row+1, col-1), (row-1, col+1)
-	if (current_max < frame_conv[row+1][col-1] || current_max < frame_conv[row-1][col+1]) {
+	if ((row < 7 && col > 0 && current_max < FRAME_CONV[row+1][col-1]) || (row > 0 && col < 7 && current_max < FRAME_CONV[row-1][col+1])) {
 		return false;
 	}
 	return true;
 }
 
-uint16_t* addFrame(uint16_t PIXEL_BUFFER[], uint16_t COUNT_BUFF[], uint16_t frameCount, struct keepCount *count) {
-	if (frameCount < 7) {
+void add_frame(uint16_t frame_median[], uint16_t count_buffer[], uint16_t frame_count) {
+	if (frame_count < 6) {
 		for (int i = 0; i < NUM_PIXELS; i++) {
-			COUNT_BUFF[(frameCount-1)*NUM_PIXELS+i] = PIXEL_BUFFER[i];
+			count_buffer[(frame_count)*NUM_PIXELS+i] = frame_median[i];
 		}
-	}
-	else {
+	} else {
 		for (int i = 0; i < 6*NUM_PIXELS; i++){
-			COUNT_BUFF[i] = COUNT_BUFF[NUM_PIXELS+i];
+			count_buffer[i] = count_buffer[NUM_PIXELS+i];
 		}
 		for (int i = 0; i < NUM_PIXELS; i++) {
-			COUNT_BUFF[7*NUM_PIXELS+i] = PIXEL_BUFFER[i];
+			count_buffer[6*NUM_PIXELS+i] = frame_median[i];
 		}
 	}
-	count->counted = false;
-	return COUNT_BUFF;
+	count.counted = false;
+	return;
 }
 
-uint16_t getMaxId(uint16_t COUNT_BUFF[], uint16_t ind, uint16_t col) {
-	convertToFrame(COUNT_BUFF, ind);
-	
-	uint16_t maxNum = frame_conv[0][0];
+uint16_t getMaxId(uint16_t count_buffer[], uint16_t ind, uint16_t col) {
+	convert_to_frame(count_buffer, ind);
+	uint16_t maxNum = FRAME_CONV[0][0];
 	uint16_t maxRowId = 0;
 	
 	for (int i=1; i < GRID_SIZE; i++){
-		if (maxNum > frame_conv[i][col]) {
-			maxNum = frame_conv[i][col];
+		if (maxNum > FRAME_CONV[i][col]) {
+			maxNum = FRAME_CONV[i][col];
 			maxRowId = i;
 		}
 	}
 	return maxRowId;
 }
 
-void convertToFrame(uint16_t COUNT_BUFF[], uint16_t ind) {
+void convert_to_frame(uint16_t count_buffer[], uint16_t ind) {
 	for (int i = 0; i < GRID_SIZE; i++) {
 		for (int j = 0; j < GRID_SIZE; j++) {
-			frame_conv[i][j] = COUNT_BUFF[(ind*NUM_PIXELS) + GRID_SIZE*i + j];
+			FRAME_CONV[i][j] = count_buffer[(ind*NUM_PIXELS) + GRID_SIZE*i + j];
 		}
 	}
 	return;
 }
 
-int determine_direction(uint16_t trigger_col, uint16_t offset, uint16_t COUNT_BUFF[]) {
+int determine_direction(uint16_t trigger_col, uint16_t offset, uint16_t count_buffer[]) {
 	if (TRIGGER_INDEX >= COUNT_BUFF_FRAMES - 1 || TRIGGER_INDEX < 1){
 		//exception
 	}
 	if (trigger_col + offset < 0 || trigger_col + offset >= GRID_SIZE) {
 		//exception
 	}
-	printf("In determine_direction\n");
 	uint16_t check_col = trigger_col + offset;
-	uint16_t max_idx = getMaxId(COUNT_BUFF, TRIGGER_INDEX, trigger_col);
+	uint16_t max_idx = getMaxId(count_buffer, TRIGGER_INDEX, trigger_col);
 	uint16_t current_max = COUNT_BUFF[TRIGGER_INDEX*NUM_PIXELS + max_idx*GRID_SIZE + trigger_col];
 	
-	if (current_max >= TRIGGER_THRESHOLD && is_local_max(COUNT_BUFF, TRIGGER_INDEX, max_idx, trigger_col)) {
+	if (current_max >= TRIGGER_THRESHOLD && is_local_max(count_buffer, TRIGGER_INDEX, max_idx, trigger_col)) {
 		// Check check_col in the past
 		// (Change upper bound to look further into the past)
 		for (uint16_t i = 1; i < 3; i++) {
-			uint16_t pastMaxIdx = getMaxId(COUNT_BUFF, TRIGGER_INDEX-i, check_col);
-			uint16_t pastMax = COUNT_BUFF[(TRIGGER_INDEX-i)*NUM_PIXELS + pastMaxIdx*GRID_SIZE + check_col];
-			if (abs(pastMax - current_max) <= MAX_THRESHOLD && is_local_max(COUNT_BUFF, TRIGGER_INDEX-i, pastMaxIdx, check_col)) {
+			uint16_t pastMaxIdx = getMaxId(count_buffer, TRIGGER_INDEX-i, check_col);
+			uint16_t pastMax = count_buffer[(TRIGGER_INDEX-i)*NUM_PIXELS + pastMaxIdx*GRID_SIZE + check_col];
+			if (abs(pastMax - current_max) <= MAX_THRESHOLD && is_local_max(count_buffer, TRIGGER_INDEX-i, pastMaxIdx, check_col)) {
 				if (offset < 0) {
-					printf("Exiting determine_direction 1\n");
 					return IN;
 				}
 				else if (offset > 0) {
-					printf("Exiting determine_direction 2\n");
 					return OUT;
 				}
 			}
@@ -109,62 +140,52 @@ int determine_direction(uint16_t trigger_col, uint16_t offset, uint16_t COUNT_BU
 		// Check check_col in the future
 		// (Change upper bound to look further into the future)
 		for (uint16_t i = 1; i < 3; i++) {
-			uint16_t futureMaxIdx = getMaxId(COUNT_BUFF, TRIGGER_INDEX + i, check_col);
-			uint16_t futureMax = COUNT_BUFF[(TRIGGER_INDEX+i)*NUM_PIXELS + futureMaxIdx*GRID_SIZE + check_col];
-			if (abs(futureMax - current_max) <= MAX_THRESHOLD && is_local_max(COUNT_BUFF, TRIGGER_INDEX + i, futureMaxIdx, check_col)) {
+			uint16_t futureMaxIdx = getMaxId(count_buffer, TRIGGER_INDEX + i, check_col);
+			uint16_t futureMax = count_buffer[(TRIGGER_INDEX+i)*NUM_PIXELS + futureMaxIdx*GRID_SIZE + check_col];
+			if (abs(futureMax - current_max) <= MAX_THRESHOLD && is_local_max(count_buffer, TRIGGER_INDEX + i, futureMaxIdx, check_col)) {
 				if (offset < 0) {
-					printf("Exiting determine_direction 3\n");
 					return OUT;
 					} else if (offset > 0) {
-					printf("Exiting determine_direction 4\n");
 					return IN;
 				}
 			}
 		}
 	}
-	printf("Exiting determine_direction 5\n");
 	return -1; //check if I can do that
 }
 
-void doCount(struct keepCount * count, uint16_t COUNT_BUFF[], uint16_t frameCount) {
-	printf("in doCount\n");
-	if (frameCount<NUM_RAW_FRAMES) {
-		printf("Exiting doCount 1\n");
+void doCount(uint16_t count_buffer[], uint16_t frame_count) {
+	if (frame_count<NUM_RAW_FRAMES) {
 		return;
 	}
-	if (count->counted) {
-		printf("Exiting doCount 2\n");
+	if (count.counted) {
 		return;
 	}
 	for (int i = 0; i < 2; i++){
-		uint16_t trigger_col = count->TRIGGER_COLUNM[i][0];
-		uint16_t offset = count->TRIGGER_COLUNM[i][1];
-		int direction = determine_direction(trigger_col, offset, COUNT_BUFF);
+		uint16_t trigger_col = count.TRIGGER_COLUNM[i][0];
+		uint16_t offset = count.TRIGGER_COLUNM[i][1];
+		int direction = determine_direction(trigger_col, offset, count_buffer);
 		if (direction == IN) {
-			count->countIn = count->countIn + 0.5;
+			count.countIn = count.countIn + 0.5;
 			} else {
-			count->countOut = count->countOut + 0.5;
+			count.countOut = count.countOut + 0.5;
 		}
 	}
-	count->counted = true;
-	printf("Exiting doCount 3\n");
+	count.counted = true;
 	return;
 	
 }
 
-void countPeople(struct keepCount* count, uint16_t PIXEL_BUFFER[], uint16_t frameCount, uint16_t COUNT_BUFF[], uint16_t lastFrame) {
-	printf("In countPeople\n");
-	COUNT_BUFF = addFrame(PIXEL_BUFFER, COUNT_BUFF, frameCount, count);
-	printf("counted = %d\n", count->counted);
-	doCount(count, COUNT_BUFF, frameCount);
-	printf("Exiting countPeople 2\n");
+void countPeople(uint16_t frame_median[], uint16_t frame_count, uint16_t count_buffer[]) {
+	add_frame(frame_median, count_buffer, frame_count);
+	doCount(count_buffer, frame_count);
 	return;
 	
 }
-void initialize_mem(uint16_t PIXEL_BUFFER[], uint16_t frameCount) {
-	if (frameCount < NUM_RAW_FRAMES) {
+void initialize_mem(uint16_t pix_buff[], uint16_t frame_count) {
+	if (frame_count < NUM_RAW_FRAMES) {
 		for (int i = 0; i < NUM_PIXELS; i++) {
-			frame[frameCount-1][i] = PIXEL_BUFFER[i];
+			FRAME[i] = pix_buff[i];
 		}
 	}
 	return;

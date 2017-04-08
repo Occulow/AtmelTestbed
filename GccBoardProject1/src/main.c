@@ -38,20 +38,9 @@
 #include <numpyInC.h>
 
 static uint16_t PIXEL_BUFFER[NUM_PIXELS];
-static uint16_t frame1[NUM_PIXELS];
-static uint16_t* MEDIAN_FILTER_POINTERS_BUFF[MEDIAN_FILTER_POINTERS_BUFF_SIZE];
-static uint16_t frame[NUM_RAW_FRAMES][NUM_PIXELS];
+static uint16_t *MEDIAN_FILTER_POINTERS_BUFF[MEDIAN_FILTER_POINTERS_BUFF_SIZE];
 static uint16_t COUNT_BUFF[COUNT_BUFF_SIZE];
-static uint16_t frame_conv[GRID_SIZE][GRID_SIZE];
-static struct keepCount count;
 
-
-void median_buffer_init(uint16_t* MEDIAN_FILTER_POINTERS_BUFF[], uint16_t** frame) {
-	for (int i = 0; i < NUM_RAW_FRAMES; i++) {
-		MEDIAN_FILTER_POINTERS_BUFF[i] = &frame[i];
-	}
-	return;
-}
 
 
 
@@ -60,18 +49,11 @@ int main (void) {
 	init_uart();
 	init_grideye();
 	delay_init();
-	median_buffer_init(MEDIAN_FILTER_POINTERS_BUFF, frame);
+	median_buffer_init(MEDIAN_FILTER_POINTERS_BUFF);
+	initialize_count();
+	uint16_t frame_count = 0;
 	
-	
-	count->countIn = 0;
-	count->countOut = 0;
-	uint16_t frameCount = 0;
-	uint16_t lastFrame = 0;
-	count->TRIGGER_COLUNM[0][0] = TRIGGER_COLUNM_2;
-	count->TRIGGER_COLUNM[0][1] = CHECK_OFFSET_2;
-	count->TRIGGER_COLUNM[1][0] = TRIGGER_COLUNM_5;
-	count->TRIGGER_COLUNM[1][1] = CHECK_OFFSET_5;
-	count->counted = false;
+	initialize_count();
 	
 	/* Insert application code here, after the board has been initialized. */
 
@@ -92,28 +74,11 @@ int main (void) {
 		if (!ge_is_sleeping()) {
 			// Send frame
 			uint8_t buffer[512];
-			
-			//double ambient_temp = get_ambient_temp();
-			
-			//uint16_t len = snprintf((char *) buffer, sizeof(buffer), "It is %.2lf degrees Celsius.\r\n", ambient_temp);
-			//uart_out(buffer, len);
+
 			ge_get_frame(PIXEL_BUFFER);
-			uint16_t size = 0;
-			for (int i = 0; i < NUM_PIXELS; i++) {
-				size += sprintf((char *) (buffer + size), "%d,", PIXEL_BUFFER[i]);
-			}
-			buffer[size-1] = '\r';
-			buffer[size] = '\n';
-			frameCount++;
-			if (frameCount <= NUM_RAW_FRAMES) {
-				initialize_mem(PIXEL_BUFFER, frameCount);
-			} else {
-				dstack(MEDIAN_FILTER_POINTERS_BUFF, PIXEL_BUFFER);;
-			}
-			uint16_t *frame_median = median_frame(MEDIAN_FILTER_POINTERS_BUFF, frame1);
-			
-			count = countPeople(&count, frame_median, frameCount, COUNT_BUFF, lastFrame);
-			uart_out(buffer, size+1);
+			start_count(frame_count, PIXEL_BUFFER, MEDIAN_FILTER_POINTERS_BUFF, COUNT_BUFF);
+			frame_count++;
 		}
 	}
+	return 0;
 }
